@@ -1,0 +1,255 @@
+openapi: 3.0.3
+info:
+  title: Horse Training Planner API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000/api
+
+paths:
+  /auth/register:
+    post:
+      summary: Register user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '201':
+          description: User created
+        '400':
+          description: Invalid input
+
+  /auth/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Unauthorized
+
+  /training-types:
+    get:
+      summary: Get all training types
+      responses:
+        '200':
+          description: List of training types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainingType'
+
+  /horses:
+    get:
+      summary: Get horses
+      parameters:
+        - in: query
+          name: discipline
+          schema:
+            type: string
+            enum: [Dressage, Jumping, Recreational]
+      responses:
+        '200':
+          description: List of horses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Horse'
+
+  /trainers:
+    get:
+      summary: Get trainers
+      responses:
+        '200':
+          description: List of trainers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trainer'
+
+  /trainings:
+    get:
+      summary: Get user trainings
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of trainings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Training'
+        '401':
+          description: Unauthorized
+
+    post:
+      summary: Book training
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingCreate'
+      responses:
+        '201':
+          description: Training booked
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+
+  /trainings/{id}:
+    put:
+      summary: Update training
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingCreate'
+      responses:
+        '200':
+          description: Updated
+        '404':
+          description: Not found
+
+    delete:
+      summary: Delete training
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserRegister:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 6
+
+    UserLogin:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+
+    TrainingType:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          enum: [Dressage, Jumping, Recreational]
+
+    Horse:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        discipline:
+          type: string
+        dailyLimit:
+          type: integer
+          example: 2
+
+    Trainer:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+
+    Training:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date-time
+        typeId:
+          type: integer
+        horseId:
+          type: integer
+        trainerId:
+          type: integer
+
+    TrainingCreate:
+      type: object
+      required: [date, typeId, horseId, trainerId]
+      properties:
+        date:
+          type: string
+          format: date-time
+        typeId:
+          type: integer
+        horseId:
+          type: integer
+        trainerId:
+          type: integer

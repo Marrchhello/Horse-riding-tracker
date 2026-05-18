@@ -1,4 +1,5 @@
 openapi: 3.0.3
+
 info:
   title: Horse Training Planner API
   version: 1.0.0
@@ -6,9 +7,18 @@ info:
 servers:
   - url: http://localhost:3000/api
 
+# GLOBAL JWT SECURITY 
+security:
+  - bearerAuth: []
+
 paths:
+
+
+  # AUTH
+  
   /auth/register:
     post:
+      security: []
       summary: Register user
       requestBody:
         required: true
@@ -24,6 +34,7 @@ paths:
 
   /auth/login:
     post:
+      security: []
       summary: Login user
       requestBody:
         required: true
@@ -41,6 +52,34 @@ paths:
         '401':
           description: Unauthorized
 
+
+  # PUBLIC DATA
+  /horses:
+    get:
+      summary: Get all horses
+      responses:
+        '200':
+          description: List of horses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Horse'
+
+  /trainers:
+    get:
+      summary: Get all trainers
+      responses:
+        '200':
+          description: List of trainers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trainer'
+
   /training-types:
     get:
       summary: Get all training types
@@ -54,43 +93,12 @@ paths:
                 items:
                   $ref: '#/components/schemas/TrainingType'
 
-  /horses:
-    get:
-      summary: Get horses
-      parameters:
-        - in: query
-          name: discipline
-          schema:
-            type: string
-            enum: [Dressage, Jumping, Recreational]
-      responses:
-        '200':
-          description: List of horses
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Horse'
 
-  /trainers:
-    get:
-      summary: Get trainers
-      responses:
-        '200':
-          description: List of trainers
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Trainer'
+  # TRAININGS
 
   /trainings:
     get:
-      summary: Get user trainings
-      security:
-        - bearerAuth: []
+      summary: Get all trainings
       responses:
         '200':
           description: List of trainings
@@ -100,13 +108,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Training'
-        '401':
-          description: Unauthorized
 
     post:
-      summary: Book training
-      security:
-        - bearerAuth: []
+      summary: Create training slot
       requestBody:
         required: true
         content:
@@ -115,39 +119,13 @@ paths:
               $ref: '#/components/schemas/TrainingCreate'
       responses:
         '201':
-          description: Training booked
+          description: Training created
         '400':
           description: Validation error
-        '401':
-          description: Unauthorized
 
   /trainings/{id}:
-    put:
-      summary: Update training
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TrainingCreate'
-      responses:
-        '200':
-          description: Updated
-        '404':
-          description: Not found
-
     delete:
       summary: Delete training
-      security:
-        - bearerAuth: []
       parameters:
         - name: id
           in: path
@@ -157,10 +135,54 @@ paths:
       responses:
         '204':
           description: Deleted
+
+  /trainings/{id}/join:
+    post:
+      summary: Join training (book a spot)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinTraining'
+      responses:
+        '201':
+          description: Successfully joined
+        '400':
+          description: Training is full or invalid request
         '404':
-          description: Not found
+          description: Training not found
+
+  /trainings/{id}/participants:
+    get:
+      summary: Get participants of training
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of participants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrainingParticipant'
+
+
+# COMPONENTS
 
 components:
+
   securitySchemes:
     bearerAuth:
       type: http
@@ -168,10 +190,15 @@ components:
       bearerFormat: JWT
 
   schemas:
+
     UserRegister:
       type: object
-      required: [email, password]
+      required: [name, surname, email, password]
       properties:
+        name:
+          type: string
+        surname:
+          type: string
         email:
           type: string
           format: email
@@ -195,15 +222,6 @@ components:
         token:
           type: string
 
-    TrainingType:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-          enum: [Dressage, Jumping, Recreational]
-
     Horse:
       type: object
       properties:
@@ -213,9 +231,8 @@ components:
           type: string
         discipline:
           type: string
-        dailyLimit:
+        daily_limit:
           type: integer
-          example: 2
 
     Trainer:
       type: object
@@ -224,32 +241,71 @@ components:
           type: integer
         name:
           type: string
+        surname:
+          type: string
+        specialization:
+          type: string
+
+    TrainingType:
+      type: object
+      properties:
+        id:
+          type: integer
+        discipline:
+          type: string
+          enum: [Dressage, Jumping, Recreational]
+        training_mode:
+          type: string
+          enum: [individual, group]
 
     Training:
       type: object
       properties:
         id:
           type: integer
+        horse_id:
+          type: integer
+        trainer_id:
+          type: integer
+        training_type_id:
+          type: integer
         date:
           type: string
           format: date-time
-        typeId:
+        capacity:
           type: integer
-        horseId:
-          type: integer
-        trainerId:
-          type: integer
+        status:
+          type: string
+          enum: [open, full, completed, cancelled]
+        created_at:
+          type: string
+          format: date-time
 
     TrainingCreate:
       type: object
-      required: [date, typeId, horseId, trainerId]
+      required: [horse_id, trainer_id, training_type_id, date]
       properties:
+        horse_id:
+          type: integer
+        trainer_id:
+          type: integer
+        training_type_id:
+          type: integer
         date:
           type: string
           format: date-time
-        typeId:
+
+    JoinTraining:
+      type: object
+      properties: {}
+        
+
+    TrainingParticipant:
+      type: object
+      properties:
+        id:
           type: integer
-        horseId:
+        training_id:
           type: integer
-        trainerId:
+        user_id:
           type: integer

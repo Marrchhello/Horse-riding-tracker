@@ -124,6 +124,32 @@ paths:
           description: Validation error
 
   /trainings/{id}:
+    put:
+      summary: Update training details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrainingUpdate'
+      responses:
+        '200':
+          description: Training successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Training'
+        '400':
+          description: Validation error / Invalid input
+        '404':
+          description: Training not found
+
     delete:
       summary: Delete training
       parameters:
@@ -135,6 +161,8 @@ paths:
       responses:
         '204':
           description: Deleted
+        '404':
+          description: Training not found
 
   /trainings/{id}/join:
     post:
@@ -190,6 +218,24 @@ components:
       bearerFormat: JWT
 
   schemas:
+
+    TrainingUpdate:
+      type: object
+      properties:
+        horse_id:
+          type: integer
+        trainer_id:
+          type: integer
+        training_type_id:
+          type: integer
+        date:
+          type: string
+          format: date-time
+        capacity:
+          type: integer
+        status:
+          type: string
+          enum: [open, full, completed, cancelled]
 
     UserRegister:
       type: object

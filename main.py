@@ -223,6 +223,15 @@ def join_training(id: int, join_req: schemas.JoinTraining, db: sqlite3.Connectio
     if cursor.fetchone():
         raise HTTPException(status_code=400, detail="Already joined")
         
+    # Check for overlapping joined trainings
+    cursor.execute("""
+        SELECT t.id FROM trainings t
+        JOIN training_participants tp ON t.id = tp.training_id
+        WHERE tp.user_id = ? AND t.date = ?
+    """, (current_user, training["date"]))
+    if cursor.fetchone():
+        raise HTTPException(status_code=400, detail="You already have a training scheduled at this time")
+        
     cursor.execute("INSERT INTO training_participants (training_id, user_id) VALUES (?, ?)", (id, current_user))
     
     if participants_count + 1 >= training["capacity"]:

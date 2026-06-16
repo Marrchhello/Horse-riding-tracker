@@ -278,7 +278,6 @@ const Trainings: React.FC = () => {
             <option value="">All Statuses</option>
             <option value="open">Open</option>
             <option value="full">Full</option>
-            <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
@@ -311,7 +310,6 @@ const Trainings: React.FC = () => {
                 <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
                   training.status === 'open' ? 'bg-green-100 text-green-800' :
                   training.status === 'full' ? 'bg-yellow-100 text-yellow-800' :
-                  training.status === 'completed' ? 'bg-gray-100 text-gray-800' :
                   'bg-red-100 text-red-800'
                 }`}>
                   {training.status.toUpperCase()}

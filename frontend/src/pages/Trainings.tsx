@@ -39,12 +39,18 @@ const Trainings: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [createStep, setCreateStep] = useState(1);
   const [allTrainings, setAllTrainings] = useState<Training[]>([]);
-  const [newTraining, setNewTraining] = useState({
+  const [newTrainingForm, setNewTrainingForm] = useState({
+    discipline: '',
+    training_mode: '',
+    date: '',
     horse_id: '',
-    trainer_id: '',
-    training_type_id: '',
-    date: ''
+    trainer_id: ''
   });
+
+  const getTrainingTypeId = () => {
+    const tt = trainingTypes.find(t => t.discipline === newTrainingForm.discipline && t.training_mode === newTrainingForm.training_mode);
+    return tt ? tt.id : null;
+  };
 
   // Participants State
   const [participantsMap, setParticipantsMap] = useState<Record<number, any[]>>({});
@@ -122,16 +128,19 @@ const Trainings: React.FC = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const tt_id = getTrainingTypeId();
+    if (!tt_id) return alert('Invalid discipline or training mode combination.');
+    
     try {
       await api.post('/trainings', {
-        ...newTraining,
-        horse_id: parseInt(newTraining.horse_id),
-        trainer_id: parseInt(newTraining.trainer_id),
-        training_type_id: parseInt(newTraining.training_type_id)
+        date: newTrainingForm.date,
+        horse_id: parseInt(newTrainingForm.horse_id),
+        trainer_id: parseInt(newTrainingForm.trainer_id),
+        training_type_id: tt_id
       });
       setIsCreating(false);
       setCreateStep(1);
-      setNewTraining({ horse_id: '', trainer_id: '', training_type_id: '', date: '' });
+      setNewTrainingForm({ discipline: '', training_mode: '', date: '', horse_id: '', trainer_id: '' });
       fetchTrainings();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to create training.');
@@ -151,7 +160,7 @@ const Trainings: React.FC = () => {
           onClick={() => {
             setIsCreating(!isCreating);
             setCreateStep(1);
-            setNewTraining({ horse_id: '', trainer_id: '', training_type_id: '', date: '' });
+            setNewTrainingForm({ discipline: '', training_mode: '', date: '', horse_id: '', trainer_id: '' });
           }}
           className="px-4 py-2 mt-4 text-white bg-blue-600 rounded shadow-sm hover:bg-blue-700 sm:mt-0"
         >
@@ -164,17 +173,58 @@ const Trainings: React.FC = () => {
           <h2 className="text-xl font-semibold">New Training Session (Step {createStep}/2)</h2>
           
           {createStep === 1 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Training Type</label>
-                <select required className="w-full px-3 py-2 border rounded" value={newTraining.training_type_id} onChange={e => setNewTraining({...newTraining, training_type_id: e.target.value})}>
-                  <option value="">Select Type</option>
-                  {trainingTypes.map(t => <option key={t.id} value={t.id}>{t.discipline} - {t.training_mode}</option>)}
+                <label className="block text-sm font-medium text-gray-700">Discipline</label>
+                <select required className="w-full px-3 py-2 border rounded" value={newTrainingForm.discipline} onChange={e => setNewTrainingForm({...newTrainingForm, discipline: e.target.value})}>
+                  <option value="">Select Discipline</option>
+                  <option value="Dressage">Dressage</option>
+                  <option value="Jumping">Jumping</option>
+                  <option value="Recreational">Recreational</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Training Mode</label>
+                <select required className="w-full px-3 py-2 border rounded" value={newTrainingForm.training_mode} onChange={e => setNewTrainingForm({...newTrainingForm, training_mode: e.target.value})}>
+                  <option value="">Select Mode</option>
+                  <option value="individual">Individual</option>
+                  <option value="group">Group</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Date & Time</label>
-                <input required type="datetime-local" className="w-full px-3 py-2 border rounded" value={newTraining.date} onChange={e => setNewTraining({...newTraining, date: e.target.value})} />
+                <div className="flex space-x-2 mt-1">
+                  <input 
+                    required 
+                    type="date" 
+                    className="w-1/2 px-3 py-2 border rounded" 
+                    value={newTrainingForm.date.split('T')[0] || ''} 
+                    onChange={e => {
+                      const day = e.target.value;
+                      const time = newTrainingForm.date.split('T')[1]?.substring(0, 5) || '09:00';
+                      setNewTrainingForm({...newTrainingForm, date: `${day}T${time}:00`});
+                    }} 
+                  />
+                  <select 
+                    required 
+                    className="w-1/2 px-3 py-2 border rounded"
+                    value={newTrainingForm.date.split('T')[1]?.substring(0, 5) || ''}
+                    onChange={e => {
+                      const day = newTrainingForm.date.split('T')[0] || new Date().toISOString().split('T')[0];
+                      const time = e.target.value;
+                      setNewTrainingForm({...newTrainingForm, date: `${day}T${time}:00`});
+                    }}
+                  >
+                    <option value="" disabled>Select Time</option>
+                    <option value="09:00">09:00</option>
+                    <option value="10:00">10:00</option>
+                    <option value="11:00">11:00</option>
+                    <option value="12:00">12:00</option>
+                    <option value="13:00">13:00</option>
+                    <option value="14:00">14:00</option>
+                    <option value="15:00">15:00</option>
+                  </select>
+                </div>
               </div>
             </div>
           )}
@@ -183,22 +233,21 @@ const Trainings: React.FC = () => {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Horse (Filtered by discipline & availability)</label>
-                <select required className="w-full px-3 py-2 border rounded" value={newTraining.horse_id} onChange={e => setNewTraining({...newTraining, horse_id: e.target.value})}>
+                <select required className="w-full px-3 py-2 border rounded" value={newTrainingForm.horse_id} onChange={e => setNewTrainingForm({...newTrainingForm, horse_id: e.target.value})}>
                   <option value="">Select Horse</option>
                   {horses.filter(h => {
-                    const selectedType = trainingTypes.find(t => t.id === parseInt(newTraining.training_type_id));
-                    const isDisciplineMatch = selectedType && h.discipline === selectedType.discipline;
-                    const isBooked = allTrainings.some(t => t.horse_id === h.id && new Date(t.date).getTime() === new Date(newTraining.date).getTime());
+                    const isDisciplineMatch = h.discipline === newTrainingForm.discipline;
+                    const isBooked = allTrainings.some(t => t.horse_id === h.id && new Date(t.date).getTime() === new Date(newTrainingForm.date).getTime());
                     return isDisciplineMatch && !isBooked;
                   }).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">Trainer (Filtered by availability)</label>
-                <select required className="w-full px-3 py-2 border rounded" value={newTraining.trainer_id} onChange={e => setNewTraining({...newTraining, trainer_id: e.target.value})}>
+                <select required className="w-full px-3 py-2 border rounded" value={newTrainingForm.trainer_id} onChange={e => setNewTrainingForm({...newTrainingForm, trainer_id: e.target.value})}>
                   <option value="">Select Trainer</option>
                   {trainers.filter(trainer => {
-                    const isBooked = allTrainings.some(t => t.trainer_id === trainer.id && new Date(t.date).getTime() === new Date(newTraining.date).getTime());
+                    const isBooked = allTrainings.some(t => t.trainer_id === trainer.id && new Date(t.date).getTime() === new Date(newTrainingForm.date).getTime());
                     return !isBooked;
                   }).map(t => <option key={t.id} value={t.id}>{t.name} {t.surname}</option>)}
                 </select>

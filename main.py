@@ -151,7 +151,7 @@ def create_training(training: schemas.TrainingCreate, db: sqlite3.Connection = D
         if not cursor.fetchone():
             raise HTTPException(status_code=400, detail="Trainer not found")
             
-        cursor.execute("SELECT id, discipline FROM training_types WHERE id = ?", (training.training_type_id,))
+        cursor.execute("SELECT id, discipline, training_mode FROM training_types WHERE id = ?", (training.training_type_id,))
         tt_row = cursor.fetchone()
         if not tt_row:
             raise HTTPException(status_code=400, detail="Training type not found")
@@ -172,9 +172,12 @@ def create_training(training: schemas.TrainingCreate, db: sqlite3.Connection = D
         if cursor.fetchone():
             raise HTTPException(status_code=400, detail="Horse is already booked at this time")
             
+        # Dynamic Capacity
+        capacity = 4 if tt_row["training_mode"] == "group" else 1
+            
         cursor.execute(
-            "INSERT INTO trainings (horse_id, trainer_id, training_type_id, date) VALUES (?, ?, ?, ?)",
-            (training.horse_id, training.trainer_id, training.training_type_id, date_str)
+            "INSERT INTO trainings (horse_id, trainer_id, training_type_id, date, capacity) VALUES (?, ?, ?, ?, ?)",
+            (training.horse_id, training.trainer_id, training.training_type_id, date_str, capacity)
         )
         db.commit()
         return {"detail": "Training created"}

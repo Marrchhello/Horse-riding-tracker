@@ -1,12 +1,13 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 import sqlite3
-from typing import List
+from typing import List, Optional
 from database import get_db, init_db
 import schemas
 import auth
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from datetime import datetime
+import math
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,7 +19,12 @@ app = FastAPI(title="Horse Training Planner API", lifespan=lifespan)
 # Setup CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -76,6 +82,54 @@ def get_training_types(db: sqlite3.Connection = Depends(get_db), current_user=De
     cursor = db.cursor()
     cursor.execute("SELECT * FROM training_types")
     return [dict(row) for row in cursor.fetchall()]
+
+@app.get("/api/trainings/search", response_model=schemas.PaginatedTrainings)
+def search_trainings(
+    page: int = 1,
+    limit: int = 10,
+    status: Optional[schemas.TrainingStatus] = None,
+    trainer_id: Optional[int] = None,
+    db: sqlite3.Connection = Depends(get_db), 
+    current_user=Depends(auth.get_current_user)
+):
+    cursor = db.cursor()
+    
+    query = "SELECT * FROM trainings"
+    count_query = "SELECT COUNT(*) as total FROM trainings"
+    conditions = []
+    params = []
+    
+    if status:
+        conditions.append("status = ?")
+        params.append(status.value)
+    if trainer_id is not None:
+        conditions.append("trainer_id = ?")
+        params.append(trainer_id)
+        
+    if conditions:
+        where_clause = " WHERE " + " AND ".join(conditions)
+        query += where_clause
+        count_query += where_clause
+        
+    cursor.execute(count_query, tuple(params))
+    total = cursor.fetchone()["total"]
+    
+    offset = (page - 1) * limit
+    query += " LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    
+    cursor.execute(query, tuple(params))
+    items = [dict(row) for row in cursor.fetchall()]
+    
+    pages = math.ceil(total / limit) if limit > 0 else 1
+    
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "size": limit,
+        "pages": pages
+    }
 
 @app.get("/api/trainings", response_model=List[schemas.Training])
 def get_trainings(db: sqlite3.Connection = Depends(get_db), current_user=Depends(auth.get_current_user)):

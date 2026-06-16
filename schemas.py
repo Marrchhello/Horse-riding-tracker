@@ -79,3 +79,10 @@ class TrainingParticipant(BaseModel):
 
 class JoinTraining(BaseModel):
     pass
+
+class PaginatedTrainings(BaseModel):
+    items: List[Training]
+    total: int
+    page: int
+    size: int
+    pages: int

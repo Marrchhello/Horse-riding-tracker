@@ -84,4 +84,40 @@ CREATE TABLE training_participants (
         ON DELETE CASCADE
 );
 
+-- ==========================================
+-- INITIAL DATA POPULATION
+-- ==========================================
 
+-- Populate Training Types
+INSERT INTO training_types (discipline, training_mode) VALUES 
+    ('Dressage', 'individual'),
+    ('Dressage', 'group'),
+    ('Jumping', 'individual'),
+    ('Jumping', 'group'),
+    ('Recreational', 'individual'),
+    ('Recreational', 'group');
+
+-- Populate Trainers
+INSERT INTO trainers (name, surname, specialization) VALUES 
+    ('John', 'Smith', 'Show Jumping'),
+    ('Sarah', 'Connor', 'Dressage Expert'),
+    ('Michael', 'Davis', 'Beginners & Recreational'),
+    ('Emma', 'Wilson', 'Advanced Jumping');
+
+-- Populate Horses
+INSERT INTO horses (name, discipline, daily_limit) VALUES 
+    ('Apollo', 'Jumping', 2),
+    ('Bella', 'Dressage', 2),
+    ('Charlie', 'Recreational', 3),
+    ('Dakota', 'Jumping', 1),
+    ('Eclipse', 'Dressage', 2),
+    ('Fiona', 'Recreational', 4);
+
+-- Populate Upcoming Trainings
+-- (Assuming trainer_id 1 (John), horse_id 1 (Apollo), type 3 (Jumping individual))
+INSERT INTO trainings (horse_id, trainer_id, training_type_id, date, capacity, status) VALUES 
+    (1, 1, 3, datetime('now', '+1 day', 'start of day', '+10 hours'), 1, 'open'),
+    (2, 2, 1, datetime('now', '+2 days', 'start of day', '+14 hours'), 1, 'open'),
+    (3, 3, 6, datetime('now', '+1 day', 'start of day', '+16 hours'), 4, 'open'),
+    (4, 4, 3, datetime('now', '+3 days', 'start of day', '+09 hours'), 1, 'open'),
+    (5, 2, 2, datetime('now', '+4 days', 'start of day', '+11 hours'), 3, 'open');

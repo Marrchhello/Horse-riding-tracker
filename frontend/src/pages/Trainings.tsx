@@ -38,6 +38,7 @@ const Trainings: React.FC = () => {
   // Create Form State
   const [isCreating, setIsCreating] = useState(false);
   const [createStep, setCreateStep] = useState(1);
+  const [allTrainings, setAllTrainings] = useState<Training[]>([]);
   const [newTraining, setNewTraining] = useState({
     horse_id: '',
     trainer_id: '',
@@ -47,6 +48,17 @@ const Trainings: React.FC = () => {
 
   // Participants State
   const [participantsMap, setParticipantsMap] = useState<Record<number, any[]>>({});
+
+  const handleNextStep = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await api.get('/trainings');
+      setAllTrainings(response.data);
+      setCreateStep(2);
+    } catch (err) {
+      alert('Failed to check availability.');
+    }
+  };
 
   useEffect(() => {
     api.get('/trainers').then(res => setTrainers(res.data)).catch(console.error);
@@ -148,7 +160,7 @@ const Trainings: React.FC = () => {
       </div>
 
       {isCreating && (
-        <form onSubmit={createStep === 1 ? (e) => { e.preventDefault(); setCreateStep(2); } : handleCreate} className="p-6 bg-white border border-gray-200 rounded shadow-sm space-y-4">
+        <form onSubmit={createStep === 1 ? handleNextStep : handleCreate} className="p-6 bg-white border border-gray-200 rounded shadow-sm space-y-4">
           <h2 className="text-xl font-semibold">New Training Session (Step {createStep}/2)</h2>
           
           {createStep === 1 && (
@@ -170,20 +182,25 @@ const Trainings: React.FC = () => {
           {createStep === 2 && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Horse (Filtered by discipline)</label>
+                <label className="block text-sm font-medium text-gray-700">Horse (Filtered by discipline & availability)</label>
                 <select required className="w-full px-3 py-2 border rounded" value={newTraining.horse_id} onChange={e => setNewTraining({...newTraining, horse_id: e.target.value})}>
                   <option value="">Select Horse</option>
                   {horses.filter(h => {
                     const selectedType = trainingTypes.find(t => t.id === parseInt(newTraining.training_type_id));
-                    return selectedType && h.discipline === selectedType.discipline;
+                    const isDisciplineMatch = selectedType && h.discipline === selectedType.discipline;
+                    const isBooked = allTrainings.some(t => t.horse_id === h.id && new Date(t.date).getTime() === new Date(newTraining.date).getTime());
+                    return isDisciplineMatch && !isBooked;
                   }).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Trainer</label>
+                <label className="block text-sm font-medium text-gray-700">Trainer (Filtered by availability)</label>
                 <select required className="w-full px-3 py-2 border rounded" value={newTraining.trainer_id} onChange={e => setNewTraining({...newTraining, trainer_id: e.target.value})}>
                   <option value="">Select Trainer</option>
-                  {trainers.map(t => <option key={t.id} value={t.id}>{t.name} {t.surname}</option>)}
+                  {trainers.filter(trainer => {
+                    const isBooked = allTrainings.some(t => t.trainer_id === trainer.id && new Date(t.date).getTime() === new Date(newTraining.date).getTime());
+                    return !isBooked;
+                  }).map(t => <option key={t.id} value={t.id}>{t.name} {t.surname}</option>)}
                 </select>
               </div>
             </div>

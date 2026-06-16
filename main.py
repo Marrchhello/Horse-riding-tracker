@@ -142,23 +142,39 @@ def create_training(training: schemas.TrainingCreate, db: sqlite3.Connection = D
     cursor = db.cursor()
     try:
         # Check foreign keys
-        cursor.execute("SELECT id FROM horses WHERE id = ?", (training.horse_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT id, discipline FROM horses WHERE id = ?", (training.horse_id,))
+        horse_row = cursor.fetchone()
+        if not horse_row:
             raise HTTPException(status_code=400, detail="Horse not found")
         
         cursor.execute("SELECT id FROM trainers WHERE id = ?", (training.trainer_id,))
         if not cursor.fetchone():
             raise HTTPException(status_code=400, detail="Trainer not found")
             
-        cursor.execute("SELECT id FROM training_types WHERE id = ?", (training.training_type_id,))
-        if not cursor.fetchone():
+        cursor.execute("SELECT id, discipline FROM training_types WHERE id = ?", (training.training_type_id,))
+        tt_row = cursor.fetchone()
+        if not tt_row:
             raise HTTPException(status_code=400, detail="Training type not found")
             
-        # Optional: check date format/value (Pydantic already validated it's a valid datetime string)
+        # Constraint: Discipline matching
+        if horse_row["discipline"] != tt_row["discipline"]:
+            raise HTTPException(status_code=400, detail="Horse discipline does not match training type discipline")
+            
+        date_str = training.date.isoformat()
         
+        # Constraint: No overlapping trainings for the trainer
+        cursor.execute("SELECT id FROM trainings WHERE trainer_id = ? AND datetime(date) = datetime(?)", (training.trainer_id, date_str))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Trainer is already booked at this time")
+            
+        # Constraint: No overlapping trainings for the horse
+        cursor.execute("SELECT id FROM trainings WHERE horse_id = ? AND datetime(date) = datetime(?)", (training.horse_id, date_str))
+        if cursor.fetchone():
+            raise HTTPException(status_code=400, detail="Horse is already booked at this time")
+            
         cursor.execute(
             "INSERT INTO trainings (horse_id, trainer_id, training_type_id, date) VALUES (?, ?, ?, ?)",
-            (training.horse_id, training.trainer_id, training.training_type_id, training.date.isoformat())
+            (training.horse_id, training.trainer_id, training.training_type_id, date_str)
         )
         db.commit()
         return {"detail": "Training created"}
@@ -227,7 +243,7 @@ def join_training(id: int, join_req: schemas.JoinTraining, db: sqlite3.Connectio
     cursor.execute("""
         SELECT t.id FROM trainings t
         JOIN training_participants tp ON t.id = tp.training_id
-        WHERE tp.user_id = ? AND t.date = ?
+        WHERE tp.user_id = ? AND datetime(t.date) = datetime(?)
     """, (current_user, training["date"]))
     if cursor.fetchone():
         raise HTTPException(status_code=400, detail="You already have a training scheduled at this time")

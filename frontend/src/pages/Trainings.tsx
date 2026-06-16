@@ -54,6 +54,16 @@ const Trainings: React.FC = () => {
 
   // Participants State
   const [participantsMap, setParticipantsMap] = useState<Record<number, any[]>>({});
+  const [myJoinedTrainings, setMyJoinedTrainings] = useState<number[]>([]);
+
+  const fetchMyTrainings = useCallback(async () => {
+    try {
+      const res = await api.get('/me/trainings');
+      setMyJoinedTrainings(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
 
   const handleNextStep = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,7 +80,8 @@ const Trainings: React.FC = () => {
     api.get('/trainers').then(res => setTrainers(res.data)).catch(console.error);
     api.get('/horses').then(res => setHorses(res.data)).catch(console.error);
     api.get('/training-types').then(res => setTrainingTypes(res.data)).catch(console.error);
-  }, []);
+    fetchMyTrainings();
+  }, [fetchMyTrainings]);
 
   const fetchTrainings = useCallback(async () => {
     setLoading(true);
@@ -86,12 +97,13 @@ const Trainings: React.FC = () => {
       const data: PaginatedResponse = response.data;
       setTrainings(data.items);
       setTotalPages(data.pages);
+      fetchMyTrainings(); // Also update joined status
     } catch (err: any) {
       setError('Failed to fetch trainings.');
     } finally {
       setLoading(false);
     }
-  }, [page, statusFilter, trainerFilter]);
+  }, [page, statusFilter, trainerFilter, fetchMyTrainings]);
 
   useEffect(() => {
     fetchTrainings();
@@ -307,13 +319,20 @@ const Trainings: React.FC = () => {
           {trainings.map((training) => (
             <div key={training.id} className="flex flex-col p-6 bg-white border border-gray-200 rounded-lg shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                  training.status === 'open' ? 'bg-green-100 text-green-800' :
-                  training.status === 'full' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {training.status.toUpperCase()}
-                </span>
+                <div className="flex space-x-2">
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                    training.status === 'open' ? 'bg-green-100 text-green-800' :
+                    training.status === 'full' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {training.status.toUpperCase()}
+                  </span>
+                  {myJoinedTrainings.includes(training.id) && (
+                    <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                      JOINED
+                    </span>
+                  )}
+                </div>
                 <span className="text-sm text-gray-500">
                   {new Date(training.date).toLocaleString()}
                 </span>
@@ -345,14 +364,18 @@ const Trainings: React.FC = () => {
               <div className="mt-4">
                 <button
                   onClick={() => handleJoin(training.id)}
-                  disabled={training.status !== 'open'}
+                  disabled={training.status !== 'open' || myJoinedTrainings.includes(training.id)}
                   className={`w-full px-4 py-2 text-sm font-medium rounded border ${
-                    training.status === 'open' 
-                      ? 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50'
-                      : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                    myJoinedTrainings.includes(training.id)
+                      ? 'bg-blue-50 text-blue-600 border-blue-200 cursor-default'
+                      : training.status === 'open' 
+                        ? 'bg-white text-blue-600 border-blue-600 hover:bg-blue-50'
+                        : 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                   }`}
                 >
-                  {training.status === 'open' ? 'Join Training' : 'Unavailable'}
+                  {myJoinedTrainings.includes(training.id) 
+                    ? 'Already Joined' 
+                    : training.status === 'open' ? 'Join Training' : 'Unavailable'}
                 </button>
               </div>
             </div>

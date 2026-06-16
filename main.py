@@ -65,6 +65,12 @@ def login(user: schemas.UserLogin, db: sqlite3.Connection = Depends(get_db)):
     )
     return {"token": access_token}
 
+@app.get("/api/me/trainings", response_model=List[int])
+def get_my_trainings(db: sqlite3.Connection = Depends(get_db), current_user=Depends(auth.get_current_user)):
+    cursor = db.cursor()
+    cursor.execute("SELECT training_id FROM training_participants WHERE user_id = ?", (current_user,))
+    return [row["training_id"] for row in cursor.fetchall()]
+
 @app.get("/api/horses", response_model=List[schemas.Horse])
 def get_horses(db: sqlite3.Connection = Depends(get_db), current_user=Depends(auth.get_current_user)):
     cursor = db.cursor()
